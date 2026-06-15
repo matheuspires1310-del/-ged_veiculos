@@ -38,7 +38,7 @@
         <div class="user-avatar">{{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}</div>
         <div>
           <div class="user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
-          <a href="{% url 'logout' %}" class="user-logout">Sair</a>
+          (Get-Content "templates\base\base.html") -replace '<a href="{% url ''logout'' %}" class="user-logout">Sair</a>', '<form method="post" action="{% url ''logout'' %}" style="display:inline;">{% csrf_token %}<button type="submit" style="background:none;border:none;padding:0;font-size:11px;color:var(--text-3);cursor:pointer;">Sair</button></form>' | Set-Content "templates\base\base.html"
         </div>
       </div>
     </div>
