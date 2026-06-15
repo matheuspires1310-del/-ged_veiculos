@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.utils import timezone
 
 from .models import Documento, TipoDocumento, Lote, Veiculo
-from .onedrive import garantir_estrutura_pasta, fazer_upload, inferir_tipo_documento, obter_url_download, excluir_arquivo
+from .storage import garantir_estrutura_pasta, fazer_upload, inferir_tipo_documento, obter_url_download, excluir_arquivo
 from empresas.models import Empresa, PermissaoEmpresa
 
 
