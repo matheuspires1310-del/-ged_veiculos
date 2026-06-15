@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}GED Veículos{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-icon"><i class="ti ti-file-certificate"></i></span>
+      <div>
+        <div class="brand-name">GED Veículos</div>
+        <div class="brand-sub">Gestão de Documentos</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="{% url 'dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+        <i class="ti ti-layout-dashboard"></i> Dashboard
+      </a>
+      <a href="{% url 'lista_documentos' %}" class="nav-item {% if 'documento' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="ti ti-files"></i> Documentos
+      </a>
+      <a href="{% url 'upload_documento' %}" class="nav-item {% if request.resolver_match.url_name == 'upload_documento' %}active{% endif %}">
+        <i class="ti ti-upload"></i> Enviar documento
+      </a>
+
+      <div class="nav-section-label">Organização</div>
+
+      <a href="{% url 'lista_empresas' %}" class="nav-item {% if 'empresa' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="ti ti-building"></i> Empresas
+      </a>
+      <a href="{% url 'lista_lotes' %}" class="nav-item {% if 'lote' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="ti ti-package"></i> Lotes
+      </a>
+      <a href="{% url 'criar_lote' %}" class="nav-item">
+        <i class="ti ti-plus"></i> Novo lote
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar">{{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}</div>
+        <div>
+          <div class="user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
+          <a href="{% url 'logout' %}" class="user-logout">Sair</a>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+    <div class="topbar">
+      <div class="page-title">{% block page_title %}{% endblock %}</div>
+      <div class="topbar-actions">{% block topbar_actions %}{% endblock %}</div>
+    </div>
+
+    {% if messages %}
+    <div class="messages-wrap">
+      {% for msg in messages %}
+      <div class="msg msg-{{ msg.tags }}">
+        <i class="ti ti-{% if msg.tags == 'success' %}circle-check{% elif msg.tags == 'error' %}alert-circle{% else %}info-circle{% endif %}"></i>
+        {{ msg }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="content-area">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+
+<script src="/static/js/main.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

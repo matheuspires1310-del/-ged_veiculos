@@ -1,0 +1,111 @@
+{% extends "base/base.html" %}
+{% block title %}Documentos — GED Veículos{% endblock %}
+{% block page_title %}Documentos{% endblock %}
+{% block topbar_actions %}
+  <a href="{% url 'upload_documento' %}" class="btn btn-primary btn-sm">
+    <i class="ti ti-upload"></i> Enviar
+  </a>
+{% endblock %}
+
+{% block content %}
+<!-- Filtros -->
+<form method="get" class="filters-bar" style="margin-bottom: 20px;">
+  <input type="text" name="q" class="form-control search-input" placeholder="Buscar por nome, chassi, placa, tag..." value="{{ filtros.q }}">
+
+  <select name="empresa" class="form-control">
+    <option value="">Todas as empresas</option>
+    {% for emp in empresas %}
+    <option value="{{ emp.pk }}" {% if filtros.empresa_id == emp.pk|stringformat:"s" %}selected{% endif %}>{{ emp.nome_exibicao }}</option>
+    {% endfor %}
+  </select>
+
+  <select name="tipo" class="form-control">
+    <option value="">Todos os tipos</option>
+    {% for t in tipos %}
+    <option value="{{ t.pk }}" {% if filtros.tipo_id == t.pk|stringformat:"s" %}selected{% endif %}>{{ t.nome }}</option>
+    {% endfor %}
+  </select>
+
+  <select name="status" class="form-control">
+    <option value="">Qualquer status</option>
+    <option value="sincronizado" {% if filtros.status == "sincronizado" %}selected{% endif %}>Sincronizado</option>
+    <option value="pendente"     {% if filtros.status == "pendente"     %}selected{% endif %}>Pendente</option>
+    <option value="erro"         {% if filtros.status == "erro"         %}selected{% endif %}>Erro</option>
+  </select>
+
+  <button type="submit" class="btn btn-outline"><i class="ti ti-filter"></i> Filtrar</button>
+  {% if filtros.q or filtros.empresa_id or filtros.tipo_id or filtros.status %}
+  <a href="{% url 'lista_documentos' %}" class="btn btn-outline"><i class="ti ti-x"></i> Limpar</a>
+  {% endif %}
+</form>
+
+<div style="margin-bottom:12px; font-size:13px; color:var(--text-3);">
+  {{ total }} documento{{ total|pluralize }} encontrado{{ total|pluralize }}
+</div>
+
+<div class="card" style="padding:0; overflow:hidden;">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Documento</th>
+          <th>Empresa</th>
+          <th>Tipo</th>
+          <th>Lote</th>
+          <th>Enviado por</th>
+          <th>Data</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for doc in documentos %}
+        <tr>
+          <td>
+            <div style="display:flex; align-items:center; gap:9px;">
+              <div class="file-icon file-icon-{{ doc.extensao }}">
+                <i class="ti ti-{{ doc.icone_extensao }}"></i>
+              </div>
+              <div>
+                <a href="{% url 'detalhe_documento' doc.pk %}">{{ doc.nome_exibicao|truncatechars:36 }}</a>
+                <div style="font-size:11px; color:var(--text-3);">{{ doc.tamanho_legivel }}</div>
+              </div>
+            </div>
+          </td>
+          <td style="font-size:12.5px;">
+            <a href="{% url 'detalhe_empresa' doc.empresa.pk %}">{{ doc.empresa.nome_exibicao }}</a>
+          </td>
+          <td><span class="badge badge-gray"><i class="ti ti-{{ doc.tipo.icone }}" style="font-size:11px;"></i> {{ doc.tipo.nome }}</span></td>
+          <td>
+            {% if doc.lote %}
+            <a href="{% url 'detalhe_lote' doc.lote.pk %}" style="font-size:12.5px; font-family:var(--mono);">{{ doc.lote.codigo }}</a>
+            {% else %}<span style="color:var(--text-3); font-size:12px;">—</span>{% endif %}
+          </td>
+          <td style="font-size:12.5px; color:var(--text-2);">{{ doc.enviado_por.get_full_name|default:doc.enviado_por.username|truncatechars:20 }}</td>
+          <td style="font-size:12.5px; white-space:nowrap;">{{ doc.criado_em|date:"d/m/Y" }}</td>
+          <td>
+            {% if doc.status_sync == "sincronizado" %}<span class="badge badge-green"><i class="ti ti-cloud-check" style="font-size:11px;"></i> OK</span>
+            {% elif doc.status_sync == "erro" %}<span class="badge badge-red" title="{{ doc.erro_sync }}"><i class="ti ti-alert-circle" style="font-size:11px;"></i> Erro</span>
+            {% else %}<span class="badge badge-amber">Pendente</span>{% endif %}
+          </td>
+          <td>
+            <a href="{% url 'detalhe_documento' doc.pk %}" class="btn btn-outline btn-sm"><i class="ti ti-eye"></i></a>
+            {% if doc.onedrive_download_url %}
+            <a href="{{ doc.onedrive_download_url }}" class="btn btn-outline btn-sm" title="Baixar"><i class="ti ti-download"></i></a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" style="text-align:center; padding:48px; color:var(--text-3);">
+            <i class="ti ti-file-off" style="font-size:32px; display:block; margin-bottom:8px;"></i>
+            Nenhum documento encontrado.
+            <a href="{% url 'upload_documento' %}">Enviar o primeiro</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

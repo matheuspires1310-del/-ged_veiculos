@@ -1,0 +1,221 @@
+{% extends "base/base.html" %}
+{% block title %}Enviar documento — GED Veículos{% endblock %}
+{% block page_title %}Enviar documento{% endblock %}
+
+{% block content %}
+<div style="max-width: 720px;">
+  <div class="page-header">
+    <div>
+      <h1>Enviar documento</h1>
+      <p>O arquivo será salvo no OneDrive automaticamente na pasta correta.</p>
+    </div>
+    <a href="{% url 'lista_documentos' %}" class="btn btn-outline"><i class="ti ti-arrow-left"></i> Voltar</a>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" id="upload-form">
+    {% csrf_token %}
+
+    <!-- Upload zone -->
+    <div class="card" style="margin-bottom: 20px;">
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" name="arquivo" id="arquivo-input" required>
+        <div class="upload-icon"><i class="ti ti-cloud-upload"></i></div>
+        <div class="upload-text">Clique para selecionar ou arraste o arquivo aqui</div>
+        <div class="upload-hint" id="upload-hint">PDF, XML, XLSX, DOCX, JPG, PNG — máx. 50MB</div>
+      </div>
+    </div>
+
+    <!-- Classificação -->
+    <div class="card" style="margin-bottom: 20px;">
+      <div class="section-title" style="margin-bottom:16px;">Classificação</div>
+
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label class="form-label" for="empresa">Empresa <span class="req">*</span></label>
+          <select name="empresa" id="empresa" class="form-control" required>
+            <option value="">Selecione a empresa</option>
+            {% for emp in empresas %}
+            <option value="{{ emp.pk }}" {% if empresa_id_pre == emp.pk|stringformat:"s" %}selected{% endif %}>
+              {{ emp.nome_exibicao }} ({{ emp.get_tipo_display }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="lote">Lote</label>
+          <select name="lote" id="lote" class="form-control">
+            <option value="">Sem lote específico</option>
+            {% for lote in lotes %}
+            <option value="{{ lote.pk }}" {% if lote_id_pre == lote.pk|stringformat:"s" %}selected{% endif %}>
+              {{ lote.codigo }}{% if lote.descricao %} — {{ lote.descricao }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <div class="form-hint">
+            <a href="{% url 'criar_lote' %}" target="_blank">+ Criar novo lote</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="tipo">Tipo de documento <span class="req">*</span></label>
+        <select name="tipo" id="tipo" class="form-control" required>
+          <option value="">Selecione o tipo</option>
+          {% for t in tipos %}
+          <option value="{{ t.pk }}">{{ t.nome }}</option>
+          {% endfor %}
+        </select>
+        <div class="form-hint" id="tipo-sugestao" style="display:none; color:var(--brand);">
+          <i class="ti ti-sparkles"></i> Tipo detectado automaticamente pelo nome do arquivo. Pode alterar se necessário.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="nome_exibicao">Nome de exibição</label>
+        <input type="text" name="nome_exibicao" id="nome_exibicao" class="form-control" placeholder="Deixe em branco para usar o nome do arquivo">
+      </div>
+    </div>
+
+    <!-- Veículo (opcional) -->
+    <div class="card" style="margin-bottom: 20px;" id="veiculo-section">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <div class="section-title" style="margin-bottom:0;">Veículo (opcional)</div>
+        <button type="button" class="btn btn-outline btn-sm" id="toggle-veiculo">
+          <i class="ti ti-chevron-down"></i> Preencher dados do veículo
+        </button>
+      </div>
+      <div id="veiculo-fields" style="display:none;">
+        <div class="form-row form-row-2">
+          <div class="form-group">
+            <label class="form-label" for="chassi">Chassi</label>
+            <input type="text" name="chassi" id="chassi" class="form-control" placeholder="17 caracteres" maxlength="17" style="font-family:var(--mono); letter-spacing:.05em;">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="placa">Placa</label>
+            <input type="text" name="placa" id="placa" class="form-control" placeholder="ABC-1234" maxlength="10" style="font-family:var(--mono); text-transform:uppercase;">
+          </div>
+        </div>
+        <div class="form-row form-row-2">
+          <div class="form-group">
+            <label class="form-label" for="marca">Marca</label>
+            <input type="text" name="marca" id="marca" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="modelo">Modelo</label>
+            <input type="text" name="modelo" id="modelo" class="form-control">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Extras -->
+    <div class="card" style="margin-bottom: 24px;">
+      <div class="section-title" style="margin-bottom:16px;">Informações adicionais</div>
+      <div class="form-group">
+        <label class="form-label" for="descricao">Descrição</label>
+        <textarea name="descricao" id="descricao" class="form-control" rows="2" placeholder="Observações sobre este documento..."></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label" for="tags">Tags</label>
+        <input type="text" name="tags" id="tags" class="form-control" placeholder="Ex: vistoria, 2024, lote-abc (separadas por vírgula)">
+        <div class="form-hint">Facilita a busca depois</div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:10px;">
+      <button type="submit" class="btn btn-primary" id="submit-btn">
+        <i class="ti ti-upload"></i> Enviar documento
+      </button>
+      <a href="{% url 'lista_documentos' %}" class="btn btn-outline">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Upload zone drag & drop
+const zone = document.getElementById('upload-zone');
+const input = document.getElementById('arquivo-input');
+const hint = document.getElementById('upload-hint');
+const tipoSel = document.getElementById('tipo');
+const tipoSugestao = document.getElementById('tipo-sugestao');
+const nomeInput = document.getElementById('nome_exibicao');
+const empresaSel = document.getElementById('empresa');
+const loteSel = document.getElementById('lote');
+
+zone.addEventListener('click', () => input.click());
+
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) {
+    input.files = e.dataTransfer.files;
+    onFileSelected(e.dataTransfer.files[0]);
+  }
+});
+
+input.addEventListener('change', () => { if (input.files[0]) onFileSelected(input.files[0]); });
+
+function onFileSelected(file) {
+  zone.classList.add('has-file');
+  zone.querySelector('.upload-icon').innerHTML = '<i class="ti ti-file-check"></i>';
+  zone.querySelector('.upload-text').textContent = file.name;
+  hint.textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+  if (!nomeInput.value) nomeInput.value = file.name;
+  inferirTipo(file.name);
+}
+
+function inferirTipo(nome) {
+  fetch(`/api/inferir-tipo/?nome=${encodeURIComponent(nome)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.id) {
+        tipoSel.value = data.id;
+        tipoSugestao.style.display = 'block';
+      }
+    });
+}
+
+// Atualiza lotes ao trocar empresa
+empresaSel.addEventListener('change', () => {
+  const empId = empresaSel.value;
+  if (!empId) return;
+  fetch(`/api/lotes/?empresa_id=${empId}`)
+    .then(r => r.json())
+    .then(data => {
+      loteSel.innerHTML = '<option value="">Sem lote específico</option>';
+      data.lotes.forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l.id;
+        opt.textContent = l.codigo + (l.descricao ? ' — ' + l.descricao : '');
+        loteSel.appendChild(opt);
+      });
+    });
+});
+
+// Toggle veículo
+document.getElementById('toggle-veiculo').addEventListener('click', function() {
+  const fields = document.getElementById('veiculo-fields');
+  const visible = fields.style.display !== 'none';
+  fields.style.display = visible ? 'none' : 'block';
+  this.innerHTML = visible
+    ? '<i class="ti ti-chevron-down"></i> Preencher dados do veículo'
+    : '<i class="ti ti-chevron-up"></i> Ocultar campos do veículo';
+});
+
+// Placa uppercase
+document.getElementById('placa').addEventListener('input', function() {
+  this.value = this.value.toUpperCase();
+});
+
+// Disable submit on send
+document.getElementById('upload-form').addEventListener('submit', function() {
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2"></i> Enviando...';
+});
+</script>
+{% endblock %}
