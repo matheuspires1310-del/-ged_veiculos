@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}GED Veículos{% endblock %}</title>
+  <title>{% block title %}Órbita Veículos{% endblock %}</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -12,12 +12,16 @@
 <body>
 
 <div class="layout">
-  <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <span class="brand-icon"><i class="ti ti-file-certificate"></i></span>
+      <svg width="32" height="32" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+        <polygon points="95,20 95,100 15,60" fill="none" stroke="#1a56db" stroke-width="8" stroke-linejoin="round"/>
+        <circle cx="95" cy="20" r="6" fill="#1a56db"/>
+        <circle cx="95" cy="100" r="6" fill="#1a56db"/>
+        <circle cx="15" cy="60" r="6" fill="#1a56db"/>
+      </svg>
       <div>
-        <div class="brand-name">GED Veículos</div>
+        <div class="brand-name">Órbita Veículos</div>
         <div class="brand-sub">Gestão de Documentos</div>
       </div>
     </div>
@@ -57,7 +61,6 @@
     </div>
   </aside>
 
-  <!-- Main -->
   <main class="main-content">
     <div class="topbar">
       <div class="page-title">{% block page_title %}{% endblock %}</div>
