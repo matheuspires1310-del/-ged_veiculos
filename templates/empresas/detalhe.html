@@ -1,0 +1,84 @@
+{% extends "base/base.html" %}
+{% block title %}{{ empresa.nome_exibicao }} — GED Veículos{% endblock %}
+{% block page_title %}{{ empresa.nome_exibicao }}{% endblock %}
+{% block topbar_actions %}
+  <a href="{% url 'upload_documento' %}?empresa={{ empresa.pk }}" class="btn btn-primary btn-sm">
+    <i class="ti ti-upload"></i> Enviar documento
+  </a>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ empresa.nome_exibicao }}</h1>
+    <p>{{ empresa.cnpj }} · {{ empresa.get_tipo_display }}{% if empresa.categoria_efetiva %} · {{ empresa.categoria_efetiva.nome }}{% endif %}</p>
+  </div>
+  <a href="{% url 'lista_empresas' %}" class="btn btn-outline"><i class="ti ti-arrow-left"></i> Voltar</a>
+</div>
+
+{% if filiais %}
+<div class="section-title" style="margin-bottom:12px;">Filiais desta matriz</div>
+<div class="grid-3" style="margin-bottom:28px;">
+  {% for filial in filiais %}
+  <a href="{% url 'detalhe_empresa' filial.pk %}" style="text-decoration:none;">
+    <div class="card card-sm" style="cursor:pointer;">
+      <div style="font-weight:500; font-size:13px; color:var(--text);">{{ filial.nome_exibicao }}</div>
+      <div style="font-size:11px; color:var(--text-3); margin-top:2px;">{{ filial.cidade }}{% if filial.uf %} / {{ filial.uf }}{% endif %}</div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="grid-2" style="gap:24px;">
+  <!-- Lotes -->
+  <div class="card" style="padding:0; overflow:hidden;">
+    <div style="padding:14px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+      <span style="font-weight:600; font-size:14px;">Lotes</span>
+      <a href="{% url 'criar_lote' %}?empresa={{ empresa.pk }}" class="btn btn-outline btn-sm"><i class="ti ti-plus"></i> Novo lote</a>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Código</th><th>Status</th><th>Docs</th><th>Data</th></tr></thead>
+      <tbody>
+        {% for lote in lotes %}
+        <tr>
+          <td><a href="{% url 'detalhe_lote' lote.pk %}" style="font-family:var(--mono); font-size:13px;">{{ lote.codigo }}</a>
+            {% if lote.descricao %}<div style="font-size:11px; color:var(--text-3);">{{ lote.descricao }}</div>{% endif %}
+          </td>
+          <td><span class="badge {{ lote.status_badge_class }}">{{ lote.get_status_display }}</span></td>
+          <td style="font-size:13px;">{{ lote.total_docs }}</td>
+          <td style="font-size:12px; color:var(--text-3);">{{ lote.data_abertura|date:"d/m/Y" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" style="text-align:center; color:var(--text-3); padding:24px;">Nenhum lote</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Documentos recentes -->
+  <div class="card" style="padding:0; overflow:hidden;">
+    <div style="padding:14px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+      <span style="font-weight:600; font-size:14px;">Documentos recentes</span>
+      <a href="{% url 'lista_documentos' %}?empresa={{ empresa.pk }}" class="btn btn-outline btn-sm">Ver todos</a>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Documento</th><th>Tipo</th><th>Data</th></tr></thead>
+      <tbody>
+        {% for doc in docs_recentes %}
+        <tr>
+          <td>
+            <a href="{% url 'detalhe_documento' doc.pk %}" style="font-size:13px;">{{ doc.nome_exibicao|truncatechars:30 }}</a>
+            {% if doc.lote %}<div style="font-size:11px; color:var(--text-3);">Lote {{ doc.lote.codigo }}</div>{% endif %}
+          </td>
+          <td><span class="badge badge-gray" style="font-size:10px;">{{ doc.tipo.nome }}</span></td>
+          <td style="font-size:12px; color:var(--text-3);">{{ doc.criado_em|date:"d/m/Y" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" style="text-align:center; color:var(--text-3); padding:24px;">Nenhum documento</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

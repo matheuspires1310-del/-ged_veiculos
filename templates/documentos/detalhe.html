@@ -1,0 +1,116 @@
+{% extends "base/base.html" %}
+{% block title %}{{ doc.nome_exibicao }} — GED Veículos{% endblock %}
+{% block page_title %}Documento{% endblock %}
+
+{% block content %}
+<div style="max-width: 780px;">
+  <div class="page-header">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div class="file-icon file-icon-{{ doc.extensao }}" style="width:48px; height:48px; font-size:22px;">
+        <i class="ti ti-{{ doc.icone_extensao }}"></i>
+      </div>
+      <div>
+        <h1 style="font-size:18px;">{{ doc.nome_exibicao }}</h1>
+        <p>{{ doc.tamanho_legivel }} · {{ doc.extensao|upper }} · enviado em {{ doc.criado_em|date:"d/m/Y H:i" }}</p>
+      </div>
+    </div>
+    <a href="{% url 'lista_documentos' %}" class="btn btn-outline"><i class="ti ti-arrow-left"></i> Voltar</a>
+  </div>
+
+  <div class="grid-2" style="gap:20px; margin-bottom:20px;">
+    <div class="card">
+      <div class="section-title" style="margin-bottom:14px;">Classificação</div>
+      <table style="width:100%; font-size:13px; border-collapse:collapse;">
+        <tr>
+          <td style="color:var(--text-3); padding:6px 0; width:40%;">Empresa</td>
+          <td><a href="{% url 'detalhe_empresa' doc.empresa.pk %}">{{ doc.empresa.nome_exibicao }}</a></td>
+        </tr>
+        <tr>
+          <td style="color:var(--text-3); padding:6px 0;">Tipo</td>
+          <td><span class="badge badge-gray">{{ doc.tipo.nome }}</span></td>
+        </tr>
+        <tr>
+          <td style="color:var(--text-3); padding:6px 0;">Lote</td>
+          <td>{% if doc.lote %}<a href="{% url 'detalhe_lote' doc.lote.pk %}" style="font-family:var(--mono);">{{ doc.lote.codigo }}</a>{% else %}—{% endif %}</td>
+        </tr>
+        {% if doc.veiculo %}
+        <tr>
+          <td style="color:var(--text-3); padding:6px 0;">Chassi</td>
+          <td style="font-family:var(--mono); font-size:12px;">{{ doc.veiculo.chassi|default:"—" }}</td>
+        </tr>
+        <tr>
+          <td style="color:var(--text-3); padding:6px 0;">Placa</td>
+          <td style="font-family:var(--mono);">{{ doc.veiculo.placa|default:"—" }}</td>
+        </tr>
+        {% endif %}
+        {% if doc.tags %}
+        <tr>
+          <td style="color:var(--text-3); padding:6px 0;">Tags</td>
+          <td>{% for tag in doc.get_tags %}<span class="badge badge-gray" style="margin-right:4px; font-size:10px;">{{ tag }}</span>{% endfor %}</td>
+        </tr>
+        {% endif %}
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="margin-bottom:14px;">Sincronização</div>
+      <table style="width:100%; font-size:13px; border-collapse:collapse;">
+        <tr>
+          <td style="color:var(--text-3); padding:6px 0; width:40%;">Status</td>
+          <td>
+            {% if doc.status_sync == "sincronizado" %}<span class="badge badge-green"><i class="ti ti-cloud-check"></i> Sincronizado</span>
+            {% elif doc.status_sync == "erro" %}<span class="badge badge-red"><i class="ti ti-alert-circle"></i> Erro</span>
+            {% else %}<span class="badge badge-amber">Pendente</span>{% endif %}
+          </td>
+        </tr>
+        {% if doc.onedrive_path %}
+        <tr>
+          <td style="color:var(--text-3); padding:6px 0;">Caminho</td>
+          <td style="font-size:11px; font-family:var(--mono); word-break:break-all;">{{ doc.onedrive_path }}</td>
+        </tr>
+        {% endif %}
+        {% if doc.erro_sync %}
+        <tr>
+          <td style="color:var(--text-3); padding:6px 0;">Erro</td>
+          <td style="color:var(--red); font-size:12px;">{{ doc.erro_sync }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td style="color:var(--text-3); padding:6px 0;">Enviado por</td>
+          <td>{{ doc.enviado_por.get_full_name|default:doc.enviado_por.username|default:"—" }}</td>
+        </tr>
+        <tr>
+          <td style="color:var(--text-3); padding:6px 0;">Atualizado</td>
+          <td>{{ doc.atualizado_em|date:"d/m/Y H:i" }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  {% if doc.descricao %}
+  <div class="card" style="margin-bottom:20px;">
+    <div class="section-title" style="margin-bottom:8px;">Descrição</div>
+    <p style="font-size:13px; color:var(--text-2);">{{ doc.descricao }}</p>
+  </div>
+  {% endif %}
+
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    {% if doc.onedrive_download_url %}
+    <a href="{{ doc.onedrive_download_url }}" class="btn btn-primary" target="_blank">
+      <i class="ti ti-download"></i> Baixar arquivo
+    </a>
+    {% endif %}
+    {% if doc.onedrive_url %}
+    <a href="{{ doc.onedrive_url }}" class="btn btn-outline" target="_blank">
+      <i class="ti ti-brand-onedrive"></i> Abrir no OneDrive
+    </a>
+    {% endif %}
+    {% if pode_excluir %}
+    <form method="post" action="{% url 'excluir_documento' doc.pk %}" style="display:inline;" onsubmit="return confirm('Excluir este documento permanentemente?')">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger"><i class="ti ti-trash"></i> Excluir</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

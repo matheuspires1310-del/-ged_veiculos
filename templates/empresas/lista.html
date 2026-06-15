@@ -1,0 +1,71 @@
+{% extends "base/base.html" %}
+{% block title %}Empresas — GED Veículos{% endblock %}
+{% block page_title %}Empresas{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Empresas</h1>
+    <p>Matrizes e filiais cadastradas no sistema</p>
+  </div>
+</div>
+
+<div class="section-title" style="margin-bottom: 12px;">Matrizes</div>
+<div class="grid-3" style="margin-bottom: 32px;">
+  {% for emp in matrizes %}
+  <a href="{% url 'detalhe_empresa' emp.pk %}" style="text-decoration:none;">
+    <div class="card" style="cursor:pointer; transition: box-shadow .15s;">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+        <div style="width:40px; height:40px; border-radius:var(--radius); background:var(--brand-light); display:flex; align-items:center; justify-content:center;">
+          <i class="ti ti-building" style="font-size:20px; color:var(--brand);"></i>
+        </div>
+        <div>
+          <div style="font-weight:600; font-size:14px; color:var(--text);">{{ emp.nome_exibicao }}</div>
+          <div style="font-size:11px; color:var(--text-3);">{{ emp.cnpj }}</div>
+        </div>
+      </div>
+      {% if emp.categoria %}
+      <span class="badge badge-blue">{{ emp.categoria.nome }}</span>
+      {% endif %}
+      <div style="margin-top:12px; display:flex; gap:16px;">
+        <div style="font-size:12px; color:var(--text-3);"><i class="ti ti-files" style="font-size:13px;"></i> {{ emp.total_docs }} doc{{ emp.total_docs|pluralize }}</div>
+        <div style="font-size:12px; color:var(--text-3);"><i class="ti ti-package" style="font-size:13px;"></i> {{ emp.total_lotes }} lote{{ emp.total_lotes|pluralize }}</div>
+      </div>
+    </div>
+  </a>
+  {% empty %}
+  <div class="card" style="grid-column: 1/-1; text-align:center; padding:40px; color:var(--text-3);">
+    <i class="ti ti-building-off" style="font-size:32px; display:block; margin-bottom:8px;"></i>
+    Nenhuma empresa cadastrada ainda. Acesse o <a href="/admin/empresas/empresa/add/">admin</a> para cadastrar.
+  </div>
+  {% endfor %}
+</div>
+
+{% if filiais %}
+<div class="section-title" style="margin-bottom: 12px;">Filiais</div>
+<div class="card" style="padding:0; overflow:hidden;">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Nome</th>
+        <th>CNPJ</th>
+        <th>Matriz</th>
+        <th>Cidade / UF</th>
+        <th>Documentos</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for emp in filiais %}
+      <tr>
+        <td><a href="{% url 'detalhe_empresa' emp.pk %}">{{ emp.nome_exibicao }}</a></td>
+        <td style="font-family:var(--mono); font-size:12px;">{{ emp.cnpj }}</td>
+        <td style="font-size:13px;">{{ emp.matriz.nome_exibicao|default:"—" }}</td>
+        <td style="font-size:13px;">{{ emp.cidade }}{% if emp.cidade and emp.uf %} / {% endif %}{{ emp.uf }}</td>
+        <td style="font-size:13px;">{{ emp.total_docs }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

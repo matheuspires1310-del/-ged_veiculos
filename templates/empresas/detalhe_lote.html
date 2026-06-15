@@ -1,0 +1,81 @@
+{% extends "base/base.html" %}
+{% block title %}Lote {{ lote.codigo }} — GED Veículos{% endblock %}
+{% block page_title %}Lote {{ lote.codigo }}{% endblock %}
+{% block topbar_actions %}
+  <a href="{% url 'upload_documento' %}?lote={{ lote.pk }}&empresa={{ lote.empresa.pk }}" class="btn btn-primary btn-sm">
+    <i class="ti ti-upload"></i> Enviar documento
+  </a>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 style="font-family:var(--mono);">{{ lote.codigo }}</h1>
+    <p>{{ lote.empresa.nome_exibicao }} · {{ lote.get_status_display }}{% if lote.descricao %} · {{ lote.descricao }}{% endif %}</p>
+  </div>
+  <a href="{% url 'lista_lotes' %}" class="btn btn-outline"><i class="ti ti-arrow-left"></i> Voltar</a>
+</div>
+
+{% if veiculos %}
+<div class="section-title" style="margin-bottom:12px;">Veículos neste lote</div>
+<div class="card" style="padding:0; overflow:hidden; margin-bottom:24px;">
+  <table class="data-table">
+    <thead><tr><th>Chassi</th><th>Placa</th><th>Marca / Modelo</th><th>Ano</th><th>Cor</th></tr></thead>
+    <tbody>
+      {% for v in veiculos %}
+      <tr>
+        <td style="font-family:var(--mono); font-size:12px;">{{ v.chassi|default:"—" }}</td>
+        <td style="font-family:var(--mono); font-size:12px;">{{ v.placa|default:"—" }}</td>
+        <td style="font-size:13px;">{{ v.marca }} {{ v.modelo }}</td>
+        <td style="font-size:13px;">{{ v.ano_modelo|default:"—" }}</td>
+        <td style="font-size:13px;">{{ v.cor|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="section-title" style="margin-bottom:12px;">Documentos ({{ documentos.count }})</div>
+<div class="card" style="padding:0; overflow:hidden;">
+  <table class="data-table">
+    <thead>
+      <tr><th>Documento</th><th>Tipo</th><th>Veículo</th><th>Enviado por</th><th>Data</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for doc in documentos %}
+      <tr>
+        <td>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="file-icon file-icon-{{ doc.extensao }}">
+              <i class="ti ti-{{ doc.icone_extensao }}"></i>
+            </div>
+            <a href="{% url 'detalhe_documento' doc.pk %}" style="font-size:13px;">{{ doc.nome_exibicao|truncatechars:30 }}</a>
+          </div>
+        </td>
+        <td><span class="badge badge-gray" style="font-size:10px;">{{ doc.tipo.nome }}</span></td>
+        <td style="font-size:12px; color:var(--text-3);">
+          {% if doc.veiculo %}{{ doc.veiculo.placa|default:doc.veiculo.chassi|default:"—" }}{% else %}—{% endif %}
+        </td>
+        <td style="font-size:12px; color:var(--text-3);">{{ doc.enviado_por.username|default:"—" }}</td>
+        <td style="font-size:12px; color:var(--text-3);">{{ doc.criado_em|date:"d/m/Y" }}</td>
+        <td>
+          {% if doc.status_sync == "sincronizado" %}<span class="badge badge-green" style="font-size:10px;"><i class="ti ti-check"></i> OK</span>
+          {% elif doc.status_sync == "erro" %}<span class="badge badge-red" style="font-size:10px;">Erro</span>
+          {% else %}<span class="badge badge-amber" style="font-size:10px;">Pendente</span>{% endif %}
+        </td>
+        <td><a href="{% url 'detalhe_documento' doc.pk %}" class="btn btn-outline btn-sm"><i class="ti ti-eye"></i></a></td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7" style="text-align:center; padding:40px; color:var(--text-3);">
+          <i class="ti ti-file-off" style="font-size:28px; display:block; margin-bottom:8px;"></i>
+          Nenhum documento neste lote ainda.
+          <a href="{% url 'upload_documento' %}?lote={{ lote.pk }}&empresa={{ lote.empresa.pk }}">Enviar o primeiro</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
