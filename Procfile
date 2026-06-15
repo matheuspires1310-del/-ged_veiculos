@@ -1,1 +1,1 @@
-web: python manage.py migrate && gunicorn ged_veiculos.wsgi --workers 2 --bind 0.0.0.0:$PORT
+web: python manage.py collectstatic --noinput && python manage.py migrate && gunicorn ged_veiculos.wsgi --workers 2 --bind 0.0.0.0:$PORT
