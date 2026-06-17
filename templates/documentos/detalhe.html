@@ -14,29 +14,104 @@
         <p>{{ doc.tamanho_legivel }} · {{ doc.extensao|upper }} · enviado em {{ doc.criado_em|date:"d/m/Y H:i" }}</p>
       </div>
     </div>
-    <a href="{% url 'lista_documentos' %}" class="btn btn-outline"><i class="ti ti-arrow-left"></i> Voltar</a>
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-outline" onclick="document.getElementById('edit-panel').classList.toggle('hidden')">
+        <i class="ti ti-edit"></i> Editar
+      </button>
+      <a href="{% url 'lista_documentos' %}" class="btn btn-outline"><i class="ti ti-arrow-left"></i> Voltar</a>
+    </div>
   </div>
 
-  <!-- 1. PREVIEW INLINE -->
+  <!-- PAINEL DE EDIÇÃO -->
+  <div id="edit-panel" class="card hidden" style="margin-bottom:20px; border-color:var(--brand);">
+    <div class="section-title" style="margin-bottom:16px; color:var(--brand);">Editar documento</div>
+    <form method="post" action="{% url 'editar_documento' doc.pk %}">
+      {% csrf_token %}
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label class="form-label">Nome de exibição</label>
+          <input type="text" name="nome_exibicao" class="form-control" value="{{ doc.nome_exibicao }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo de documento</label>
+          <select name="tipo" class="form-control">
+            {% for t in tipos %}
+            <option value="{{ t.pk }}" {% if t.pk == doc.tipo.pk %}selected{% endif %}>{{ t.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label class="form-label">Empresa</label>
+          <select name="empresa" class="form-control" id="edit-empresa">
+            {% for emp in empresas %}
+            <option value="{{ emp.pk }}" {% if emp.pk == doc.empresa.pk %}selected{% endif %}>{{ emp.nome_exibicao }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Lote</label>
+          <select name="lote" class="form-control" id="edit-lote">
+            <option value="">Sem lote</option>
+            {% for l in lotes %}
+            <option value="{{ l.pk }}" {% if doc.lote and l.pk == doc.lote.pk %}selected{% endif %}>{{ l.codigo }}{% if l.descricao %} — {{ l.descricao }}{% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descrição</label>
+        <textarea name="descricao" class="form-control" rows="2">{{ doc.descricao }}</textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Tags</label>
+        <input type="text" name="tags" class="form-control" value="{{ doc.tags }}" placeholder="separadas por vírgula">
+      </div>
+      <div style="margin-top:16px; display:flex; gap:8px;">
+        <button type="submit" class="btn btn-primary"><i class="ti ti-check"></i> Salvar alterações</button>
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('edit-panel').classList.add('hidden')">Cancelar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- PREVIEW INLINE -->
   {% if doc.onedrive_download_url %}
   <div class="card" style="padding:0; overflow:hidden; margin-bottom:20px;">
     <div style="padding:12px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
       <span style="font-size:13px; font-weight:500;">Visualização</span>
-      <a href="{{ doc.onedrive_download_url }}" class="btn btn-outline btn-sm" target="_blank"><i class="ti ti-external-link"></i> Abrir em nova aba</a>
+      <a href="{{ doc.onedrive_download_url }}" class="btn btn-outline btn-sm" target="_blank" download="{{ doc.nome_exibicao }}">
+        <i class="ti ti-download"></i> Baixar
+      </a>
     </div>
     {% if doc.extensao == "pdf" %}
-    <iframe src="{{ doc.onedrive_download_url }}" style="width:100%; height:600px; border:none; display:block;"></iframe>
+    <object data="{{ doc.onedrive_download_url }}#toolbar=1&navpanes=0&scrollbar=1" 
+            type="application/pdf" 
+            style="width:100%; height:620px; display:block; border:none;">
+      <div style="padding:32px; text-align:center; color:var(--text-3);">
+        <p style="margin-bottom:12px;">Seu navegador não suporta visualização de PDF.</p>
+        <a href="{{ doc.onedrive_download_url }}" class="btn btn-primary" download="{{ doc.nome_exibicao }}">
+          <i class="ti ti-download"></i> Baixar PDF
+        </a>
+      </div>
+    </object>
     {% elif doc.extensao in "png,jpg,jpeg,webp,gif" %}
     <div style="padding:20px; text-align:center; background:var(--surface-2);">
-      <img src="{{ doc.onedrive_download_url }}" style="max-width:100%; max-height:500px; border-radius:var(--radius); box-shadow:var(--shadow-sm);">
+      <img src="{{ doc.onedrive_download_url }}" style="max-width:100%; max-height:500px; border-radius:var(--radius); box-shadow:var(--shadow-sm);" onclick="window.open(this.src)">
+    </div>
+    {% elif doc.extensao == "xml" %}
+    <div style="padding:20px;">
+      <pre id="xml-content" style="font-family:var(--mono); font-size:12px; color:var(--text-2); background:var(--surface-2); padding:16px; border-radius:var(--radius); overflow:auto; max-height:500px;">Carregando...</pre>
     </div>
     {% else %}
     <div style="padding:32px; text-align:center; color:var(--text-3);">
       <i class="ti ti-file-download" style="font-size:32px; display:block; margin-bottom:8px;"></i>
-      Preview não disponível para este formato.
-      <a href="{{ doc.onedrive_download_url }}" class="btn btn-primary btn-sm" style="margin-top:12px; display:inline-flex;">
-        <i class="ti ti-download"></i> Baixar arquivo
-      </a>
+      Preview não disponível para .{{ doc.extensao|upper }}.
+      <div style="margin-top:12px;">
+        <a href="{{ doc.onedrive_download_url }}" class="btn btn-primary" download="{{ doc.nome_exibicao }}">
+          <i class="ti ti-download"></i> Baixar arquivo
+        </a>
+      </div>
     </div>
     {% endif %}
   </div>
@@ -46,33 +121,25 @@
     <div class="card">
       <div class="section-title" style="margin-bottom:14px;">Classificação</div>
       <table style="width:100%; font-size:13px; border-collapse:collapse;">
-        <tr>
-          <td style="color:var(--text-3); padding:6px 0; width:40%;">Empresa</td>
-          <td><a href="{% url 'detalhe_empresa' doc.empresa.pk %}">{{ doc.empresa.nome_exibicao }}</a></td>
-        </tr>
-        <tr>
-          <td style="color:var(--text-3); padding:6px 0;">Tipo</td>
-          <td><span class="badge badge-gray">{{ doc.tipo.nome }}</span></td>
-        </tr>
-        <tr>
-          <td style="color:var(--text-3); padding:6px 0;">Lote</td>
-          <td>{% if doc.lote %}<a href="{% url 'detalhe_lote' doc.lote.pk %}" style="font-family:var(--mono);">{{ doc.lote.codigo }}</a>{% else %}—{% endif %}</td>
-        </tr>
+        <tr><td style="color:var(--text-3); padding:6px 0; width:40%;">Empresa</td>
+            <td><a href="{% url 'detalhe_empresa' doc.empresa.pk %}">{{ doc.empresa.nome_exibicao }}</a></td></tr>
+        <tr><td style="color:var(--text-3); padding:6px 0;">Tipo</td>
+            <td><span class="badge badge-gray">{{ doc.tipo.nome }}</span></td></tr>
+        <tr><td style="color:var(--text-3); padding:6px 0;">Lote</td>
+            <td>{% if doc.lote %}<a href="{% url 'detalhe_lote' doc.lote.pk %}" style="font-family:var(--mono);">{{ doc.lote.codigo }}</a>{% else %}—{% endif %}</td></tr>
         {% if doc.veiculo %}
-        <tr>
-          <td style="color:var(--text-3); padding:6px 0;">Chassi</td>
-          <td style="font-family:var(--mono); font-size:12px;">{{ doc.veiculo.chassi|default:"—" }}</td>
-        </tr>
-        <tr>
-          <td style="color:var(--text-3); padding:6px 0;">Placa</td>
-          <td style="font-family:var(--mono);">{{ doc.veiculo.placa|default:"—" }}</td>
-        </tr>
+        <tr><td style="color:var(--text-3); padding:6px 0;">Chassi</td>
+            <td style="font-family:var(--mono); font-size:12px;">{{ doc.veiculo.chassi|default:"—" }}</td></tr>
+        <tr><td style="color:var(--text-3); padding:6px 0;">Placa</td>
+            <td style="font-family:var(--mono);">{{ doc.veiculo.placa|default:"—" }}</td></tr>
         {% endif %}
         {% if doc.tags %}
-        <tr>
-          <td style="color:var(--text-3); padding:6px 0;">Tags</td>
-          <td>{% for tag in doc.get_tags %}<span class="badge badge-gray" style="margin-right:4px; font-size:10px;">{{ tag }}</span>{% endfor %}</td>
-        </tr>
+        <tr><td style="color:var(--text-3); padding:6px 0;">Tags</td>
+            <td>{% for tag in doc.get_tags %}<span class="badge badge-gray" style="margin-right:4px; font-size:10px;">{{ tag }}</span>{% endfor %}</td></tr>
+        {% endif %}
+        {% if doc.descricao %}
+        <tr><td style="color:var(--text-3); padding:6px 0;">Descrição</td>
+            <td style="font-size:12px;">{{ doc.descricao }}</td></tr>
         {% endif %}
       </table>
     </div>
@@ -80,42 +147,27 @@
     <div class="card">
       <div class="section-title" style="margin-bottom:14px;">Sincronização</div>
       <table style="width:100%; font-size:13px; border-collapse:collapse;">
-        <tr>
-          <td style="color:var(--text-3); padding:6px 0; width:40%;">Status</td>
-          <td>
-            {% if doc.status_sync == "sincronizado" %}<span class="badge badge-green"><i class="ti ti-cloud-check"></i> Sincronizado</span>
-            {% elif doc.status_sync == "erro" %}<span class="badge badge-red"><i class="ti ti-alert-circle"></i> Erro</span>
-            {% else %}<span class="badge badge-amber">Pendente</span>{% endif %}
-          </td>
-        </tr>
+        <tr><td style="color:var(--text-3); padding:6px 0; width:40%;">Status</td>
+            <td>{% if doc.status_sync == "sincronizado" %}<span class="badge badge-green"><i class="ti ti-cloud-check"></i> Sincronizado</span>
+                {% elif doc.status_sync == "erro" %}<span class="badge badge-red"><i class="ti ti-alert-circle"></i> Erro</span>
+                {% else %}<span class="badge badge-amber">Pendente</span>{% endif %}</td></tr>
         {% if doc.erro_sync %}
-        <tr>
-          <td style="color:var(--text-3); padding:6px 0;">Erro</td>
-          <td style="color:var(--red); font-size:12px;">{{ doc.erro_sync }}</td>
-        </tr>
+        <tr><td style="color:var(--text-3); padding:6px 0;">Erro</td>
+            <td style="color:var(--red); font-size:12px;">{{ doc.erro_sync }}</td></tr>
         {% endif %}
-        <tr>
-          <td style="color:var(--text-3); padding:6px 0;">Enviado por</td>
-          <td>{{ doc.enviado_por.get_full_name|default:doc.enviado_por.username|default:"—" }}</td>
-        </tr>
-        <tr>
-          <td style="color:var(--text-3); padding:6px 0;">Atualizado</td>
-          <td>{{ doc.atualizado_em|date:"d/m/Y H:i" }}</td>
-        </tr>
+        <tr><td style="color:var(--text-3); padding:6px 0;">Enviado por</td>
+            <td>{{ doc.enviado_por.get_full_name|default:doc.enviado_por.username|default:"—" }}</td></tr>
+        <tr><td style="color:var(--text-3); padding:6px 0;">Data</td>
+            <td>{{ doc.criado_em|date:"d/m/Y H:i" }}</td></tr>
+        <tr><td style="color:var(--text-3); padding:6px 0;">Atualizado</td>
+            <td>{{ doc.atualizado_em|date:"d/m/Y H:i" }}</td></tr>
       </table>
     </div>
   </div>
 
-  {% if doc.descricao %}
-  <div class="card" style="margin-bottom:20px;">
-    <div class="section-title" style="margin-bottom:8px;">Descrição</div>
-    <p style="font-size:13px; color:var(--text-2);">{{ doc.descricao }}</p>
-  </div>
-  {% endif %}
-
   <div style="display:flex; gap:10px; flex-wrap:wrap;">
     {% if doc.onedrive_download_url %}
-    <a href="{{ doc.onedrive_download_url }}" class="btn btn-primary" target="_blank">
+    <a href="{{ doc.onedrive_download_url }}" class="btn btn-primary" download="{{ doc.nome_exibicao }}">
       <i class="ti ti-download"></i> Baixar arquivo
     </a>
     {% endif %}
@@ -127,4 +179,36 @@
     {% endif %}
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Carrega XML como texto
+{% if doc.extensao == "xml" and doc.onedrive_download_url %}
+fetch("{{ doc.onedrive_download_url }}")
+  .then(r => r.text())
+  .then(txt => { document.getElementById('xml-content').textContent = txt; })
+  .catch(() => { document.getElementById('xml-content').textContent = 'Não foi possível carregar o XML.'; });
+{% endif %}
+
+// Atualiza lotes ao trocar empresa no painel de edição
+document.getElementById('edit-empresa')?.addEventListener('change', function() {
+  fetch(`/api/lotes/?empresa_id=${this.value}`)
+    .then(r => r.json())
+    .then(data => {
+      const sel = document.getElementById('edit-lote');
+      sel.innerHTML = '<option value="">Sem lote</option>';
+      data.lotes.forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l.id;
+        opt.textContent = l.codigo + (l.descricao ? ' — ' + l.descricao : '');
+        sel.appendChild(opt);
+      });
+    });
+});
+</script>
+
+<style>
+.hidden { display: none !important; }
+</style>
 {% endblock %}

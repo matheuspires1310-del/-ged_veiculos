@@ -140,7 +140,7 @@ def detalhe_documento(request, pk):
         except Exception:
             pass
 
-    return render(request, "documentos/detalhe.html", {"doc": doc, "pode_excluir": pode_excluir})
+    return render(request, "documentos/detalhe.html", {"doc": doc, "pode_excluir": pode_excluir, "tipos": TipoDocumento.objects.filter(ativo=True), "empresas": empresas, "lotes": Lote.objects.filter(empresa__in=empresas).order_by("-criado_em")[:100]})
 
 
 @login_required
@@ -259,3 +259,30 @@ def lotes_por_empresa_ajax(request):
         status__in=["aberto","em_andamento"]
     ).values("id","codigo","descricao")
     return JsonResponse({"lotes": list(lotes)})
+
+
+@login_required
+@require_POST
+def editar_documento(request, pk):
+    empresas = _empresas_do_usuario(request.user)
+    doc = get_object_or_404(Documento, pk=pk, empresa__in=empresas)
+
+    nova_empresa_id = request.POST.get("empresa")
+    nova_empresa = get_object_or_404(Empresa, pk=nova_empresa_id, id__in=empresas.values_list("id", flat=True))
+
+    if not _pode_upload(request.user, nova_empresa):
+        return HttpResponseForbidden()
+
+    lote_id = request.POST.get("lote") or None
+    lote = get_object_or_404(Lote, pk=lote_id) if lote_id else None
+
+    doc.nome_exibicao = request.POST.get("nome_exibicao", doc.nome_exibicao).strip() or doc.nome_exibicao
+    doc.tipo = get_object_or_404(TipoDocumento, pk=request.POST.get("tipo"))
+    doc.empresa = nova_empresa
+    doc.lote = lote
+    doc.descricao = request.POST.get("descricao", "").strip()
+    doc.tags = request.POST.get("tags", "").strip()
+    doc.save()
+
+    messages.success(request, "Documento atualizado com sucesso.")
+    return redirect("detalhe_documento", pk=doc.pk)
