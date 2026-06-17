@@ -24,6 +24,42 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
 }
 
+[data-theme="dark"] {
+  --brand: #4d82f0;
+  --brand-light: #1e2d4a;
+  --brand-dark: #6b97f5;
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface-2: #22263a;
+  --border: #2a2f45;
+  --border-strong: #373d56;
+  --text: #e9ecf4;
+  --text-2: #9aa3c0;
+  --text-3: #5c6480;
+  --green: #34d399; --green-bg: #0d2e22;
+  --amber: #fbbf24; --amber-bg: #2d2007;
+  --red: #f87171;   --red-bg: #2d0f0f;
+  --blue: #4d82f0;  --blue-bg: #1a2540;
+  --gray: #9aa3c0;  --gray-bg: #1e2235;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.3), 0 1px 2px rgba(0,0,0,.2);
+}
+
+/* ── Dark mode toggle button ─────────────────────── */
+.btn-theme {
+  background: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  cursor: pointer;
+  color: var(--text-2);
+  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  transition: background .12s, color .12s;
+  line-height: 1;
+}
+.btn-theme:hover { background: var(--surface-2); color: var(--text); }
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 15px; }
 body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; }

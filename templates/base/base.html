@@ -45,7 +45,12 @@
   <main class="main-content">
     <div class="topbar">
       <div class="page-title">{% block page_title %}{% endblock %}</div>
-      <div class="topbar-actions">{% block topbar_actions %}{% endblock %}</div>
+      <div class="topbar-actions">
+        {% block topbar_actions %}{% endblock %}
+        <button class="btn-theme" id="theme-toggle" title="Alternar tema" aria-label="Alternar modo escuro">
+          <i class="ti ti-moon" id="theme-icon"></i>
+        </button>
+      </div>
     </div>
     {% if messages %}
     <div class="messages-wrap">
