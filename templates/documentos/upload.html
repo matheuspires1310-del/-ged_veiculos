@@ -1,13 +1,13 @@
 {% extends "base/base.html" %}
-{% block title %}Enviar documento — GED Veículos{% endblock %}
-{% block page_title %}Enviar documento{% endblock %}
+{% block title %}Enviar documentos — Órbita Veículos{% endblock %}
+{% block page_title %}Enviar documentos{% endblock %}
 
 {% block content %}
 <div style="max-width: 720px;">
   <div class="page-header">
     <div>
-      <h1>Enviar documento</h1>
-      <p>O arquivo será salvo no OneDrive automaticamente na pasta correta.</p>
+      <h1>Enviar documentos</h1>
+      <p>Selecione um ou vários arquivos de uma vez.</p>
     </div>
     <a href="{% url 'lista_documentos' %}" class="btn btn-outline"><i class="ti ti-arrow-left"></i> Voltar</a>
   </div>
@@ -15,20 +15,21 @@
   <form method="post" enctype="multipart/form-data" id="upload-form">
     {% csrf_token %}
 
-    <!-- Upload zone -->
+    <!-- 2. UPLOAD MÚLTIPLO -->
     <div class="card" style="margin-bottom: 20px;">
       <div class="upload-zone" id="upload-zone">
-        <input type="file" name="arquivo" id="arquivo-input" required>
+        <input type="file" name="arquivos" id="arquivo-input" multiple accept=".pdf,.xml,.png,.jpg,.jpeg,.xlsx,.docx">
         <div class="upload-icon"><i class="ti ti-cloud-upload"></i></div>
-        <div class="upload-text">Clique para selecionar ou arraste o arquivo aqui</div>
-        <div class="upload-hint" id="upload-hint">PDF, XML, XLSX, DOCX, JPG, PNG — máx. 50MB</div>
+        <div class="upload-text">Clique para selecionar ou arraste os arquivos aqui</div>
+        <div class="upload-hint" id="upload-hint">PDF, XML, XLSX, DOCX, JPG, PNG — máx. 50MB por arquivo · múltiplos arquivos permitidos</div>
       </div>
+      <!-- Lista de arquivos selecionados -->
+      <div id="file-list" style="display:none; margin-top:12px;"></div>
     </div>
 
     <!-- Classificação -->
     <div class="card" style="margin-bottom: 20px;">
       <div class="section-title" style="margin-bottom:16px;">Classificação</div>
-
       <div class="form-row form-row-2">
         <div class="form-group">
           <label class="form-label" for="empresa">Empresa <span class="req">*</span></label>
@@ -41,7 +42,6 @@
             {% endfor %}
           </select>
         </div>
-
         <div class="form-group">
           <label class="form-label" for="lote">Lote</label>
           <select name="lote" id="lote" class="form-control">
@@ -52,12 +52,9 @@
             </option>
             {% endfor %}
           </select>
-          <div class="form-hint">
-            <a href="{% url 'criar_lote' %}" target="_blank">+ Criar novo lote</a>
-          </div>
+          <div class="form-hint"><a href="{% url 'criar_lote' %}" target="_blank">+ Criar novo lote</a></div>
         </div>
       </div>
-
       <div class="form-group">
         <label class="form-label" for="tipo">Tipo de documento <span class="req">*</span></label>
         <select name="tipo" id="tipo" class="form-control" required>
@@ -67,25 +64,24 @@
           {% endfor %}
         </select>
         <div class="form-hint" id="tipo-sugestao" style="display:none; color:var(--brand);">
-          <i class="ti ti-sparkles"></i> Tipo detectado automaticamente pelo nome do arquivo. Pode alterar se necessário.
+          <i class="ti ti-sparkles"></i> Tipo detectado automaticamente pelo nome do arquivo.
         </div>
       </div>
-
-      <div class="form-group">
-        <label class="form-label" for="nome_exibicao">Nome de exibição</label>
-        <input type="text" name="nome_exibicao" id="nome_exibicao" class="form-control" placeholder="Deixe em branco para usar o nome do arquivo">
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label" for="descricao">Descrição / observações</label>
+        <textarea name="descricao" id="descricao" class="form-control" rows="2" placeholder="Observações sobre estes documentos..."></textarea>
       </div>
     </div>
 
-    <!-- Veículo (opcional) -->
-    <div class="card" style="margin-bottom: 20px;" id="veiculo-section">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+    <!-- Veículo -->
+    <div class="card" style="margin-bottom: 20px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0;">
         <div class="section-title" style="margin-bottom:0;">Veículo (opcional)</div>
         <button type="button" class="btn btn-outline btn-sm" id="toggle-veiculo">
           <i class="ti ti-chevron-down"></i> Preencher dados do veículo
         </button>
       </div>
-      <div id="veiculo-fields" style="display:none;">
+      <div id="veiculo-fields" style="display:none; margin-top:16px;">
         <div class="form-row form-row-2">
           <div class="form-group">
             <label class="form-label" for="chassi">Chassi</label>
@@ -97,35 +93,15 @@
           </div>
         </div>
         <div class="form-row form-row-2">
-          <div class="form-group">
-            <label class="form-label" for="marca">Marca</label>
-            <input type="text" name="marca" id="marca" class="form-control">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="modelo">Modelo</label>
-            <input type="text" name="modelo" id="modelo" class="form-control">
-          </div>
+          <div class="form-group"><label class="form-label">Marca</label><input type="text" name="marca" class="form-control"></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Modelo</label><input type="text" name="modelo" class="form-control"></div>
         </div>
-      </div>
-    </div>
-
-    <!-- Extras -->
-    <div class="card" style="margin-bottom: 24px;">
-      <div class="section-title" style="margin-bottom:16px;">Informações adicionais</div>
-      <div class="form-group">
-        <label class="form-label" for="descricao">Descrição</label>
-        <textarea name="descricao" id="descricao" class="form-control" rows="2" placeholder="Observações sobre este documento..."></textarea>
-      </div>
-      <div class="form-group" style="margin-bottom:0;">
-        <label class="form-label" for="tags">Tags</label>
-        <input type="text" name="tags" id="tags" class="form-control" placeholder="Ex: vistoria, 2024, lote-abc (separadas por vírgula)">
-        <div class="form-hint">Facilita a busca depois</div>
       </div>
     </div>
 
     <div style="display:flex; gap:10px;">
       <button type="submit" class="btn btn-primary" id="submit-btn">
-        <i class="ti ti-upload"></i> Enviar documento
+        <i class="ti ti-upload"></i> <span id="submit-label">Enviar documentos</span>
       </button>
       <a href="{% url 'lista_documentos' %}" class="btn btn-outline">Cancelar</a>
     </div>
@@ -135,51 +111,60 @@
 
 {% block extra_js %}
 <script>
-// Upload zone drag & drop
 const zone = document.getElementById('upload-zone');
 const input = document.getElementById('arquivo-input');
 const hint = document.getElementById('upload-hint');
 const tipoSel = document.getElementById('tipo');
 const tipoSugestao = document.getElementById('tipo-sugestao');
-const nomeInput = document.getElementById('nome_exibicao');
 const empresaSel = document.getElementById('empresa');
 const loteSel = document.getElementById('lote');
+const fileList = document.getElementById('file-list');
 
 zone.addEventListener('click', () => input.click());
-
 zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
 zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
 zone.addEventListener('drop', e => {
   e.preventDefault(); zone.classList.remove('dragover');
   if (e.dataTransfer.files.length) {
     input.files = e.dataTransfer.files;
-    onFileSelected(e.dataTransfer.files[0]);
+    onFilesSelected(e.dataTransfer.files);
   }
 });
+input.addEventListener('change', () => { if (input.files.length) onFilesSelected(input.files); });
 
-input.addEventListener('change', () => { if (input.files[0]) onFileSelected(input.files[0]); });
-
-function onFileSelected(file) {
+function onFilesSelected(files) {
   zone.classList.add('has-file');
-  zone.querySelector('.upload-icon').innerHTML = '<i class="ti ti-file-check"></i>';
-  zone.querySelector('.upload-text').textContent = file.name;
-  hint.textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
-  if (!nomeInput.value) nomeInput.value = file.name;
-  inferirTipo(file.name);
+  zone.querySelector('.upload-icon').innerHTML = '<i class="ti ti-files"></i>';
+  zone.querySelector('.upload-text').textContent = `${files.length} arquivo${files.length > 1 ? 's' : ''} selecionado${files.length > 1 ? 's' : ''}`;
+  hint.textContent = Array.from(files).map(f => f.name).join(', ').substring(0, 80) + (files.length > 2 ? '...' : '');
+
+  // Lista de arquivos
+  fileList.style.display = 'block';
+  fileList.innerHTML = Array.from(files).map((f, i) => `
+    <div style="display:flex; align-items:center; gap:8px; padding:8px 10px; background:var(--surface-2); border-radius:var(--radius); margin-bottom:6px;">
+      <i class="ti ti-file" style="color:var(--text-3); font-size:15px;"></i>
+      <span style="font-size:13px; flex:1;">${f.name}</span>
+      <span style="font-size:11px; color:var(--text-3);">${(f.size/1024/1024).toFixed(2)} MB</span>
+    </div>
+  `).join('');
+
+  // Auto-inferir tipo pelo primeiro arquivo
+  if (files.length === 1) inferirTipo(files[0].name);
+
+  // Atualiza label do botão
+  document.getElementById('submit-label').textContent = files.length > 1
+    ? `Enviar ${files.length} documentos`
+    : 'Enviar documento';
 }
 
 function inferirTipo(nome) {
   fetch(`/api/inferir-tipo/?nome=${encodeURIComponent(nome)}`)
     .then(r => r.json())
     .then(data => {
-      if (data.id) {
-        tipoSel.value = data.id;
-        tipoSugestao.style.display = 'block';
-      }
+      if (data.id) { tipoSel.value = data.id; tipoSugestao.style.display = 'block'; }
     });
 }
 
-// Atualiza lotes ao trocar empresa
 empresaSel.addEventListener('change', () => {
   const empId = empresaSel.value;
   if (!empId) return;
@@ -196,7 +181,6 @@ empresaSel.addEventListener('change', () => {
     });
 });
 
-// Toggle veículo
 document.getElementById('toggle-veiculo').addEventListener('click', function() {
   const fields = document.getElementById('veiculo-fields');
   const visible = fields.style.display !== 'none';
@@ -206,12 +190,8 @@ document.getElementById('toggle-veiculo').addEventListener('click', function() {
     : '<i class="ti ti-chevron-up"></i> Ocultar campos do veículo';
 });
 
-// Placa uppercase
-document.getElementById('placa').addEventListener('input', function() {
-  this.value = this.value.toUpperCase();
-});
+document.getElementById('placa').addEventListener('input', function() { this.value = this.value.toUpperCase(); });
 
-// Disable submit on send
 document.getElementById('upload-form').addEventListener('submit', function() {
   const btn = document.getElementById('submit-btn');
   btn.disabled = true;

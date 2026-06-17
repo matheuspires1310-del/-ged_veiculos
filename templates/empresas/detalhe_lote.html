@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% block title %}Lote {{ lote.codigo }} — GED Veículos{% endblock %}
+{% block title %}Lote {{ lote.codigo }} — Órbita Veículos{% endblock %}
 {% block page_title %}Lote {{ lote.codigo }}{% endblock %}
 {% block topbar_actions %}
   <a href="{% url 'upload_documento' %}?lote={{ lote.pk }}&empresa={{ lote.empresa.pk }}" class="btn btn-primary btn-sm">
@@ -11,9 +11,35 @@
 <div class="page-header">
   <div>
     <h1 style="font-family:var(--mono);">{{ lote.codigo }}</h1>
-    <p>{{ lote.empresa.nome_exibicao }} · {{ lote.get_status_display }}{% if lote.descricao %} · {{ lote.descricao }}{% endif %}</p>
+    <p>{{ lote.empresa.nome_exibicao }} · <span class="badge {{ lote.status_badge_class }}">{{ lote.get_status_display }}</span>{% if lote.descricao %} · {{ lote.descricao }}{% endif %}</p>
   </div>
   <a href="{% url 'lista_lotes' %}" class="btn btn-outline"><i class="ti ti-arrow-left"></i> Voltar</a>
+</div>
+
+<!-- 3. CHECKLIST de tipos de documento -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="section-title" style="margin-bottom:14px;">Checklist de documentos</div>
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    {% for item in checklist %}
+    <div style="display:flex; align-items:center; gap:7px; padding:8px 14px; border-radius:var(--radius);
+         background:{% if item.ok %}var(--green-bg){% else %}var(--surface-2){% endif %};
+         border:1px solid {% if item.ok %}#a7f3d0{% else %}var(--border){% endif %};">
+      <i class="ti ti-{% if item.ok %}circle-check{% else %}circle-dashed{% endif %}"
+         style="font-size:16px; color:{% if item.ok %}var(--green){% else %}var(--text-3){% endif %};"></i>
+      <span style="font-size:13px; color:{% if item.ok %}var(--green){% else %}var(--text-2){% endif %}; font-weight:{% if item.ok %}500{% else %}400{% endif %};">
+        {{ item.tipo }}
+      </span>
+      {% if item.ok %}
+      <span style="font-size:11px; color:var(--green);">({{ item.total }})</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% with total_ok=checklist|length %}
+  <div style="margin-top:12px; font-size:12px; color:var(--text-3);">
+    {{ docs_por_tipo|length }} de {{ checklist|length }} tipos com documentos
+  </div>
+  {% endwith %}
 </div>
 
 {% if veiculos %}
@@ -39,24 +65,18 @@
 <div class="section-title" style="margin-bottom:12px;">Documentos ({{ documentos.count }})</div>
 <div class="card" style="padding:0; overflow:hidden;">
   <table class="data-table">
-    <thead>
-      <tr><th>Documento</th><th>Tipo</th><th>Veículo</th><th>Enviado por</th><th>Data</th><th>Status</th><th></th></tr>
-    </thead>
+    <thead><tr><th>Documento</th><th>Tipo</th><th>Veículo</th><th>Enviado por</th><th>Data</th><th>Status</th><th></th></tr></thead>
     <tbody>
       {% for doc in documentos %}
       <tr>
         <td>
           <div style="display:flex; align-items:center; gap:8px;">
-            <div class="file-icon file-icon-{{ doc.extensao }}">
-              <i class="ti ti-{{ doc.icone_extensao }}"></i>
-            </div>
+            <div class="file-icon file-icon-{{ doc.extensao }}"><i class="ti ti-{{ doc.icone_extensao }}"></i></div>
             <a href="{% url 'detalhe_documento' doc.pk %}" style="font-size:13px;">{{ doc.nome_exibicao|truncatechars:30 }}</a>
           </div>
         </td>
         <td><span class="badge badge-gray" style="font-size:10px;">{{ doc.tipo.nome }}</span></td>
-        <td style="font-size:12px; color:var(--text-3);">
-          {% if doc.veiculo %}{{ doc.veiculo.placa|default:doc.veiculo.chassi|default:"—" }}{% else %}—{% endif %}
-        </td>
+        <td style="font-size:12px; color:var(--text-3);">{% if doc.veiculo %}{{ doc.veiculo.placa|default:doc.veiculo.chassi|default:"—" }}{% else %}—{% endif %}</td>
         <td style="font-size:12px; color:var(--text-3);">{{ doc.enviado_por.username|default:"—" }}</td>
         <td style="font-size:12px; color:var(--text-3);">{{ doc.criado_em|date:"d/m/Y" }}</td>
         <td>

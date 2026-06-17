@@ -1,15 +1,13 @@
 {% extends "base/base.html" %}
-{% block title %}Dashboard — GED Veículos{% endblock %}
+{% block title %}Dashboard — Órbita Veículos{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
 {% block topbar_actions %}
-  <a href="{% url 'upload_documento' %}" class="btn btn-primary btn-sm">
-    <i class="ti ti-upload"></i> Enviar documento
-  </a>
+  <a href="{% url 'upload_documento' %}" class="btn btn-primary btn-sm"><i class="ti ti-upload"></i> Enviar documento</a>
 {% endblock %}
 
 {% block content %}
 <!-- Stats -->
-<div class="grid-4" style="margin-bottom: 28px;">
+<div class="grid-4" style="margin-bottom: 24px;">
   <div class="stat-card">
     <div class="stat-label">Total de documentos</div>
     <div class="stat-value">{{ stats.total_docs }}</div>
@@ -22,89 +20,122 @@
   <div class="stat-card">
     <div class="stat-label">Lotes abertos</div>
     <div class="stat-value">{{ stats.lotes_abertos }}</div>
+    <div class="stat-sub"><a href="{% url 'lista_lotes' %}?status=aberto">Ver lotes</a></div>
   </div>
   <div class="stat-card">
-    <div class="stat-label" style="color: {% if stats.erros_sync > 0 %}#dc2626{% endif %};">Erros de sincronização</div>
-    <div class="stat-value" style="color: {% if stats.erros_sync > 0 %}#dc2626{% endif %};">{{ stats.erros_sync }}</div>
+    <div class="stat-label" style="color:{% if stats.erros_sync > 0 %}#dc2626{% endif %};">Erros de sync</div>
+    <div class="stat-value" style="color:{% if stats.erros_sync > 0 %}#dc2626{% endif %};">{{ stats.erros_sync }}</div>
     {% if stats.erros_sync > 0 %}
-    <div class="stat-sub"><a href="{% url 'lista_documentos' %}?status=erro" style="color:#dc2626;">Ver documentos com erro</a></div>
+    <div class="stat-sub"><a href="{% url 'lista_documentos' %}?status=erro" style="color:#dc2626;">Corrigir</a></div>
     {% endif %}
   </div>
 </div>
 
-<div class="grid-2" style="gap: 24px;">
-  <!-- Documentos recentes -->
-  <div class="card" style="padding: 0; overflow: hidden;">
-    <div style="padding: 16px 20px; border-bottom: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-      <span style="font-weight:600; font-size:14px;">Documentos recentes</span>
-      <a href="{% url 'lista_documentos' %}" class="btn btn-outline btn-sm">Ver todos</a>
-    </div>
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Documento</th>
-            <th>Empresa</th>
-            <th>Tipo</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for doc in recentes %}
-          <tr>
-            <td>
-              <div style="display:flex; align-items:center; gap:8px;">
-                <div class="file-icon file-icon-{{ doc.extensao }}">
-                  <i class="ti ti-{{ doc.icone_extensao }}"></i>
-                </div>
-                <div>
-                  <a href="{% url 'detalhe_documento' doc.pk %}">{{ doc.nome_exibicao|truncatechars:30 }}</a>
-                  <div style="font-size:11px; color:var(--text-3);">{{ doc.tamanho_legivel }}</div>
-                </div>
-              </div>
-            </td>
-            <td style="font-size:12px;">{{ doc.empresa.nome_exibicao|truncatechars:20 }}</td>
-            <td><span class="badge badge-gray">{{ doc.tipo.nome }}</span></td>
-            <td>
-              {% if doc.status_sync == "sincronizado" %}<span class="badge badge-green"><i class="ti ti-check"></i> OK</span>
-              {% elif doc.status_sync == "erro" %}<span class="badge badge-red"><i class="ti ti-x"></i> Erro</span>
-              {% else %}<span class="badge badge-amber">Pendente</span>{% endif %}
-            </td>
-          </tr>
-          {% empty %}
-          <tr><td colspan="4" style="text-align:center; color:var(--text-3); padding:32px;">Nenhum documento encontrado</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+<div class="grid-2" style="gap:24px; margin-bottom:24px;">
+  <!-- 5. GRÁFICO de documentos por mês -->
+  <div class="card">
+    <div class="section-title" style="margin-bottom:16px;">Documentos por mês</div>
+    <div style="display:flex; align-items:flex-end; gap:8px; height:120px;">
+      {% for item in docs_por_mes %}
+      <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;">
+        <span style="font-size:10px; color:var(--text-3);">{{ item.total }}</span>
+        <div style="width:100%; background:var(--brand); border-radius:4px 4px 0 0; min-height:4px;"
+             title="{{ item.total }} docs"
+             data-valor="{{ item.total }}" data-max="{{ max_mes }}"
+             class="bar-chart-item"></div>
+        <span style="font-size:10px; color:var(--text-3); white-space:nowrap;">{{ item.mes }}</span>
+      </div>
+      {% empty %}
+      <div style="width:100%; text-align:center; color:var(--text-3); font-size:13px; align-self:center;">
+        Nenhum documento ainda
+      </div>
+      {% endfor %}
     </div>
   </div>
 
-  <!-- Por tipo + Empresas -->
-  <div style="display:flex; flex-direction:column; gap:20px;">
-    <!-- Distribuição por tipo -->
-    <div class="card">
-      <div class="section-title">Documentos por tipo</div>
-      {% for item in por_tipo %}
-      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-        <i class="ti ti-{{ item.tipo__icone }}" style="font-size:16px; color:var(--text-3); width:20px;"></i>
-        <div style="flex:1;">
-          <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-            <span style="font-size:13px;">{{ item.tipo__nome }}</span>
-            <span style="font-size:13px; font-weight:500;">{{ item.total }}</span>
-          </div>
-          <div style="height:4px; background:var(--surface-2); border-radius:999px;">
-            <div style="height:4px; background:var(--brand); border-radius:999px; width:{% widthratio item.total stats.total_docs 100 %}%;"></div>
-          </div>
+  <!-- Distribuição por tipo -->
+  <div class="card">
+    <div class="section-title" style="margin-bottom:16px;">Por tipo de documento</div>
+    {% for item in por_tipo %}
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+      <i class="ti ti-{{ item.tipo__icone }}" style="font-size:16px; color:var(--text-3); width:20px;"></i>
+      <div style="flex:1;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+          <span style="font-size:13px;">{{ item.tipo__nome }}</span>
+          <span style="font-size:13px; font-weight:500;">{{ item.total }}</span>
+        </div>
+        <div style="height:4px; background:var(--surface-2); border-radius:999px;">
+          {% if stats.total_docs > 0 %}
+          <div style="height:4px; background:var(--brand); border-radius:999px; width:{% widthratio item.total stats.total_docs 100 %}%;"></div>
+          {% endif %}
         </div>
       </div>
-      {% empty %}
-      <p style="font-size:13px; color:var(--text-3);">Nenhum documento ainda.</p>
+    </div>
+    {% empty %}
+    <p style="font-size:13px; color:var(--text-3);">Nenhum documento ainda.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="grid-2" style="gap:24px;">
+  <!-- Documentos recentes -->
+  <div class="card" style="padding:0; overflow:hidden;">
+    <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+      <span style="font-weight:600; font-size:14px;">Documentos recentes</span>
+      <a href="{% url 'lista_documentos' %}" class="btn btn-outline btn-sm">Ver todos</a>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Documento</th><th>Empresa</th><th>Tipo</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for doc in recentes %}
+        <tr>
+          <td>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div class="file-icon file-icon-{{ doc.extensao }}"><i class="ti ti-{{ doc.icone_extensao }}"></i></div>
+              <div>
+                <a href="{% url 'detalhe_documento' doc.pk %}">{{ doc.nome_exibicao|truncatechars:28 }}</a>
+                <div style="font-size:11px; color:var(--text-3);">{{ doc.tamanho_legivel }}</div>
+              </div>
+            </div>
+          </td>
+          <td style="font-size:12px;">{{ doc.empresa.nome_exibicao|truncatechars:18 }}</td>
+          <td><span class="badge badge-gray">{{ doc.tipo.nome }}</span></td>
+          <td>
+            {% if doc.status_sync == "sincronizado" %}<span class="badge badge-green"><i class="ti ti-check"></i> OK</span>
+            {% elif doc.status_sync == "erro" %}<span class="badge badge-red"><i class="ti ti-x"></i> Erro</span>
+            {% else %}<span class="badge badge-amber">Pendente</span>{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" style="text-align:center; color:var(--text-3); padding:32px;">Nenhum documento</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:20px;">
+    <!-- 5. ALERTAS de lotes sem movimentação -->
+    {% if lotes_alertas %}
+    <div class="card" style="border-color:#fde68a; background:#fffbeb;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+        <i class="ti ti-alert-triangle" style="color:var(--amber); font-size:18px;"></i>
+        <span style="font-weight:600; font-size:13px; color:var(--amber);">Lotes sem movimentação</span>
+      </div>
+      {% for lote in lotes_alertas %}
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #fde68a;">
+        <div>
+          <a href="{% url 'detalhe_lote' lote.pk %}" style="font-family:var(--mono); font-size:13px; font-weight:500;">{{ lote.codigo }}</a>
+          <div style="font-size:11px; color:var(--amber);">{{ lote.empresa.nome_exibicao }} · {{ lote.dias_sem_doc }} dias sem documento</div>
+        </div>
+        <a href="{% url 'upload_documento' %}?lote={{ lote.pk }}&empresa={{ lote.empresa.pk }}" class="btn btn-outline btn-sm"><i class="ti ti-upload"></i></a>
+      </div>
       {% endfor %}
     </div>
+    {% endif %}
 
-    <!-- Empresas rápido acesso -->
+    <!-- Empresas -->
     <div class="card">
-      <div class="section-title">Empresas</div>
+      <div class="section-title" style="margin-bottom:12px;">Empresas</div>
       {% for emp in empresas %}
       <a href="{% url 'detalhe_empresa' emp.pk %}" style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); text-decoration:none; color:var(--text);">
         <div>
@@ -117,4 +148,16 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Renderiza barras do gráfico proporcionalmente
+document.querySelectorAll('.bar-chart-item').forEach(bar => {
+  const val = parseInt(bar.dataset.valor) || 0;
+  const max = parseInt(bar.dataset.max) || 1;
+  const pct = Math.max((val / max) * 100, val > 0 ? 8 : 0);
+  bar.style.height = pct + 'px';
+});
+</script>
 {% endblock %}

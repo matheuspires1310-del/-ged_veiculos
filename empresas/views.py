@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.db.models import Count
 
 from .models import Empresa, CategoriaVeiculo
-from documentos.models import Lote, Documento
+from documentos.models import Lote, Documento, TipoDocumento
 
 
 def _empresas_do_usuario(user):
@@ -18,14 +18,11 @@ def _empresas_do_usuario(user):
 @login_required
 def lista_empresas(request):
     empresas = _empresas_do_usuario(request.user).select_related("categoria", "matriz").annotate(
-        total_docs=Count("documentos"),
-        total_lotes=Count("lotes"),
+        total_docs=Count("documentos"), total_lotes=Count("lotes"),
     )
-    matrizes = empresas.filter(tipo="matriz")
-    filiais = empresas.filter(tipo="filial")
     return render(request, "empresas/lista.html", {
-        "matrizes": matrizes,
-        "filiais": filiais,
+        "matrizes": empresas.filter(tipo="matriz"),
+        "filiais": empresas.filter(tipo="filial"),
         "categorias": CategoriaVeiculo.objects.all(),
     })
 
@@ -35,8 +32,7 @@ def detalhe_empresa(request, pk):
     empresas = _empresas_do_usuario(request.user)
     empresa = get_object_or_404(Empresa, pk=pk, id__in=empresas.values_list("id", flat=True))
     lotes = Lote.objects.filter(empresa=empresa).annotate(total_docs=Count("documentos")).order_by("-criado_em")
-    docs_recentes = Documento.objects.filter(empresa=empresa).select_related("tipo", "lote").order_by("-criado_em")[:20]
-
+    docs_recentes = Documento.objects.filter(empresa=empresa).select_related("tipo","lote").order_by("-criado_em")[:20]
     return render(request, "empresas/detalhe.html", {
         "empresa": empresa,
         "lotes": lotes,
@@ -48,7 +44,7 @@ def detalhe_empresa(request, pk):
 @login_required
 def lista_lotes(request):
     empresas = _empresas_do_usuario(request.user)
-    lotes = Lote.objects.filter(empresa__in=empresas).select_related("empresa", "criado_por").annotate(
+    lotes = Lote.objects.filter(empresa__in=empresas).select_related("empresa","criado_por").annotate(
         total_docs=Count("documentos")
     ).order_by("-criado_em")
 
@@ -70,7 +66,6 @@ def lista_lotes(request):
 @login_required
 def criar_lote(request):
     empresas = _empresas_do_usuario(request.user)
-
     if request.method == "POST":
         codigo = request.POST.get("codigo", "").strip()
         empresa_id = request.POST.get("empresa")
@@ -84,11 +79,8 @@ def criar_lote(request):
         else:
             empresa = get_object_or_404(Empresa, pk=empresa_id, id__in=empresas.values_list("id", flat=True))
             lote = Lote.objects.create(
-                codigo=codigo,
-                empresa=empresa,
-                descricao=descricao,
-                observacoes=observacoes,
-                criado_por=request.user,
+                codigo=codigo, empresa=empresa, descricao=descricao,
+                observacoes=observacoes, criado_por=request.user,
             )
             messages.success(request, f"Lote {lote.codigo} criado.")
             return redirect("detalhe_lote", pk=lote.pk)
@@ -100,11 +92,27 @@ def criar_lote(request):
 def detalhe_lote(request, pk):
     empresas = _empresas_do_usuario(request.user)
     lote = get_object_or_404(Lote, pk=pk, empresa__in=empresas)
-    docs = Documento.objects.filter(lote=lote).select_related("tipo", "veiculo", "enviado_por").order_by("-criado_em")
+    docs = Documento.objects.filter(lote=lote).select_related("tipo","veiculo","enviado_por").order_by("-criado_em")
     veiculos = lote.veiculos.all()
+
+    # 3. CHECKLIST — quais tipos já têm documento neste lote
+    todos_tipos = TipoDocumento.objects.filter(ativo=True)
+    tipos_com_doc = set(docs.values_list("tipo_id", flat=True))
+    docs_por_tipo = docs.values("tipo__nome").annotate(total=Count("id"))
+    total_por_tipo = {d["tipo__nome"]: d["total"] for d in docs_por_tipo}
+
+    checklist = []
+    for tipo in todos_tipos:
+        checklist.append({
+            "tipo": tipo.nome,
+            "ok": tipo.pk in tipos_com_doc,
+            "total": total_por_tipo.get(tipo.nome, 0),
+        })
 
     return render(request, "empresas/detalhe_lote.html", {
         "lote": lote,
         "documentos": docs,
         "veiculos": veiculos,
+        "checklist": checklist,
+        "docs_por_tipo": tipos_com_doc,
     })

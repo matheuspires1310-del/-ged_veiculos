@@ -5,6 +5,7 @@ from django.views.decorators.http import require_POST
 from django.db.models import Q, Count
 from django.contrib import messages
 from django.utils import timezone
+import datetime
 
 from .models import Documento, TipoDocumento, Lote, Veiculo
 from .storage import garantir_estrutura_pasta, fazer_upload, inferir_tipo_documento, obter_url_download, excluir_arquivo
@@ -12,7 +13,6 @@ from empresas.models import Empresa, PermissaoEmpresa
 
 
 def _empresas_do_usuario(user):
-    """Retorna QuerySet das empresas que o usuário pode acessar."""
     if user.is_superuser:
         return Empresa.objects.filter(ativo=True)
     ids = PermissaoEmpresa.objects.filter(usuario=user).values_list("empresa_id", flat=True)
@@ -45,21 +45,47 @@ def dashboard(request):
         "erros_sync": docs.filter(status_sync="erro").count(),
     }
 
-    # Documentos recentes
     recentes = docs.select_related("empresa", "tipo", "enviado_por").order_by("-criado_em")[:10]
 
-    # Distribuição por tipo
     por_tipo = (
         docs.values("tipo__nome", "tipo__icone")
         .annotate(total=Count("id"))
         .order_by("-total")[:6]
     )
 
+    # Documentos por mês (últimos 6 meses)
+    hoje = timezone.now().date()
+    docs_por_mes = []
+    max_mes = 1
+    MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"]
+    for i in range(5, -1, -1):
+        d = hoje - datetime.timedelta(days=30*i)
+        total = docs.filter(criado_em__year=d.year, criado_em__month=d.month).count()
+        docs_por_mes.append({"mes": MESES[d.month-1], "total": total})
+        if total > max_mes:
+            max_mes = total
+
+    # Alertas: lotes abertos sem documento há mais de 7 dias
+    lotes_alertas = []
+    for lote in Lote.objects.filter(empresa__in=empresas, status__in=["aberto","em_andamento"]):
+        ultimo = Documento.objects.filter(lote=lote).order_by("-criado_em").first()
+        if ultimo:
+            dias = (timezone.now().date() - ultimo.criado_em.date()).days
+        else:
+            dias = (timezone.now().date() - lote.data_abertura).days
+        if dias >= 7:
+            lote.dias_sem_doc = dias
+            lotes_alertas.append(lote)
+    lotes_alertas.sort(key=lambda l: l.dias_sem_doc, reverse=True)
+
     return render(request, "dashboard/index.html", {
         "stats": stats,
         "recentes": recentes,
         "por_tipo": list(por_tipo),
         "empresas": empresas,
+        "docs_por_mes": docs_por_mes,
+        "max_mes": max_mes,
+        "lotes_alertas": lotes_alertas[:5],
     })
 
 
@@ -70,7 +96,6 @@ def lista_documentos(request):
         "empresa", "tipo", "lote", "veiculo", "enviado_por"
     )
 
-    # Filtros
     q = request.GET.get("q", "").strip()
     empresa_id = request.GET.get("empresa")
     tipo_id = request.GET.get("tipo")
@@ -79,12 +104,9 @@ def lista_documentos(request):
 
     if q:
         qs = qs.filter(
-            Q(nome_original__icontains=q)
-            | Q(nome_exibicao__icontains=q)
-            | Q(descricao__icontains=q)
-            | Q(tags__icontains=q)
-            | Q(veiculo__chassi__icontains=q)
-            | Q(veiculo__placa__icontains=q)
+            Q(nome_original__icontains=q) | Q(nome_exibicao__icontains=q)
+            | Q(descricao__icontains=q) | Q(tags__icontains=q)
+            | Q(veiculo__chassi__icontains=q) | Q(veiculo__placa__icontains=q)
         )
     if empresa_id:
         qs = qs.filter(empresa_id=empresa_id)
@@ -111,7 +133,6 @@ def detalhe_documento(request, pk):
     doc = get_object_or_404(Documento, pk=pk, empresa__in=empresas)
     pode_excluir = _pode_excluir(request.user, doc.empresa)
 
-    # Atualiza URL de download (expira em ~1h)
     if doc.onedrive_item_id and doc.status_sync == "sincronizado":
         try:
             doc.onedrive_download_url = obter_url_download(doc.onedrive_item_id)
@@ -132,23 +153,21 @@ def upload_documento(request):
         return render(request, "documentos/upload.html", {
             "empresas": empresas,
             "tipos": TipoDocumento.objects.filter(ativo=True),
-            "lotes": Lote.objects.filter(empresa__in=empresas, status__in=["aberto", "em_andamento"]).order_by("-criado_em"),
+            "lotes": Lote.objects.filter(empresa__in=empresas, status__in=["aberto","em_andamento"]).order_by("-criado_em"),
             "empresa_id_pre": empresa_id,
             "lote_id_pre": lote_id,
         })
 
-    # POST — processa upload
-    arquivo = request.FILES.get("arquivo")
+    # POST — suporta múltiplos arquivos
+    arquivos = request.FILES.getlist("arquivos")
     empresa_id = request.POST.get("empresa")
     tipo_id = request.POST.get("tipo")
     lote_id = request.POST.get("lote") or None
-    nome_exibicao = request.POST.get("nome_exibicao", "").strip()
     descricao = request.POST.get("descricao", "").strip()
-    tags = request.POST.get("tags", "").strip()
     chassi = request.POST.get("chassi", "").strip()
     placa = request.POST.get("placa", "").strip()
 
-    if not arquivo or not empresa_id or not tipo_id:
+    if not arquivos or not empresa_id or not tipo_id:
         messages.error(request, "Arquivo, empresa e tipo de documento são obrigatórios.")
         return redirect("upload_documento")
 
@@ -159,57 +178,47 @@ def upload_documento(request):
     tipo = get_object_or_404(TipoDocumento, pk=tipo_id, ativo=True)
     lote = get_object_or_404(Lote, pk=lote_id, empresa__in=empresas) if lote_id else None
 
-    # Extensão
-    nome_original = arquivo.name
-    ext = nome_original.rsplit(".", 1)[-1].lower() if "." in nome_original else ""
-    if ext not in tipo.get_extensoes():
-        messages.error(request, f"Extensão .{ext} não permitida para {tipo.nome}.")
-        return redirect("upload_documento")
-
-    # Veiculo (se chassi ou placa informados)
     veiculo = None
     if lote and (chassi or placa):
         veiculo, _ = Veiculo.objects.get_or_create(
-            lote=lote,
-            chassi=chassi or "",
-            placa=placa or "",
-            defaults={"marca": request.POST.get("marca", ""), "modelo": request.POST.get("modelo", "")}
+            lote=lote, chassi=chassi or "", placa=placa or "",
+            defaults={"marca": request.POST.get("marca",""), "modelo": request.POST.get("modelo","")}
         )
 
-    # Cria registro pendente
-    doc = Documento.objects.create(
-        empresa=empresa,
-        lote=lote,
-        veiculo=veiculo,
-        tipo=tipo,
-        nome_original=nome_original,
-        nome_exibicao=nome_exibicao or nome_original,
-        extensao=ext,
-        tamanho_bytes=arquivo.size,
-        descricao=descricao,
-        tags=tags,
-        enviado_por=request.user,
-        status_sync="pendente",
-    )
+    sucesso = 0
+    erro = 0
+    pasta_id, caminho = garantir_estrutura_pasta(empresa, lote, tipo)
 
-    # Faz upload para OneDrive
-    try:
-        pasta_id, caminho = garantir_estrutura_pasta(empresa, lote, tipo)
-        resultado = fazer_upload(arquivo.read(), nome_original, pasta_id)
+    for arquivo in arquivos:
+        nome_original = arquivo.name
+        ext = nome_original.rsplit(".", 1)[-1].lower() if "." in nome_original else ""
 
-        doc.onedrive_item_id = resultado.get("id", "")
-        doc.onedrive_path = caminho + "/" + nome_original
-        doc.onedrive_url = resultado.get("webUrl", "")
-        doc.onedrive_download_url = resultado.get("@microsoft.graph.downloadUrl", "")
-        doc.status_sync = "sincronizado"
-        doc.save()
+        doc = Documento.objects.create(
+            empresa=empresa, lote=lote, veiculo=veiculo, tipo=tipo,
+            nome_original=nome_original, nome_exibicao=nome_original,
+            extensao=ext, tamanho_bytes=arquivo.size,
+            descricao=descricao, enviado_por=request.user, status_sync="pendente",
+        )
 
-        messages.success(request, f'Documento "{doc.nome_exibicao}" enviado com sucesso.')
-    except Exception as e:
-        doc.status_sync = "erro"
-        doc.erro_sync = str(e)
-        doc.save()
-        messages.error(request, f"Erro ao enviar para o OneDrive: {e}")
+        try:
+            resultado = fazer_upload(arquivo.read(), nome_original, pasta_id)
+            doc.onedrive_item_id = resultado.get("id", "")
+            doc.onedrive_path = caminho + "/" + nome_original
+            doc.onedrive_url = resultado.get("webUrl", "")
+            doc.onedrive_download_url = resultado.get("@microsoft.graph.downloadUrl", "")
+            doc.status_sync = "sincronizado"
+            doc.save()
+            sucesso += 1
+        except Exception as e:
+            doc.status_sync = "erro"
+            doc.erro_sync = str(e)
+            doc.save()
+            erro += 1
+
+    if sucesso:
+        messages.success(request, f'{sucesso} documento{"s" if sucesso > 1 else ""} enviado{"s" if sucesso > 1 else ""} com sucesso.')
+    if erro:
+        messages.error(request, f'{erro} arquivo{"s" if erro > 1 else ""} com erro ao enviar.')
 
     return redirect("lista_documentos")
 
@@ -219,16 +228,13 @@ def upload_documento(request):
 def excluir_documento(request, pk):
     empresas = _empresas_do_usuario(request.user)
     doc = get_object_or_404(Documento, pk=pk, empresa__in=empresas)
-
     if not _pode_excluir(request.user, doc.empresa):
         return HttpResponseForbidden()
-
     if doc.onedrive_item_id:
         try:
             excluir_arquivo(doc.onedrive_item_id)
         except Exception as e:
-            messages.warning(request, f"Removido do banco, mas erro ao excluir no OneDrive: {e}")
-
+            messages.warning(request, f"Removido do banco, mas erro ao excluir no storage: {e}")
     doc.delete()
     messages.success(request, "Documento excluído.")
     return redirect("lista_documentos")
@@ -236,7 +242,6 @@ def excluir_documento(request, pk):
 
 @login_required
 def inferir_tipo_ajax(request):
-    """Endpoint AJAX: sugere tipo de documento pelo nome do arquivo."""
     nome = request.GET.get("nome", "")
     tipos = TipoDocumento.objects.filter(ativo=True)
     tipo = inferir_tipo_documento(nome, tipos)
@@ -247,12 +252,10 @@ def inferir_tipo_ajax(request):
 
 @login_required
 def lotes_por_empresa_ajax(request):
-    """Endpoint AJAX: retorna lotes de uma empresa."""
     empresa_id = request.GET.get("empresa_id")
     empresas = _empresas_do_usuario(request.user)
     lotes = Lote.objects.filter(
-        empresa_id=empresa_id,
-        empresa__in=empresas,
-        status__in=["aberto", "em_andamento"]
-    ).values("id", "codigo", "descricao")
+        empresa_id=empresa_id, empresa__in=empresas,
+        status__in=["aberto","em_andamento"]
+    ).values("id","codigo","descricao")
     return JsonResponse({"lotes": list(lotes)})
