@@ -2,6 +2,11 @@
 {% block title %}Lote {{ lote.codigo }} — Órbita Veículos{% endblock %}
 {% block page_title %}Lote {{ lote.codigo }}{% endblock %}
 {% block topbar_actions %}
+  {% if documentos %}
+  <a href="{% url 'download_lote_zip' lote.pk %}" class="btn btn-outline btn-sm">
+    <i class="ti ti-folder-download"></i> Baixar tudo (.zip)
+  </a>
+  {% endif %}
   <a href="{% url 'upload_documento' %}?lote={{ lote.pk }}&empresa={{ lote.empresa.pk }}" class="btn btn-primary btn-sm">
     <i class="ti ti-upload"></i> Enviar documento
   </a>

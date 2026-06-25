@@ -7,4 +7,5 @@ urlpatterns = [
     path("lotes/", views.lista_lotes, name="lista_lotes"),
     path("lotes/novo/", views.criar_lote, name="criar_lote"),
     path("lotes/<int:pk>/", views.detalhe_lote, name="detalhe_lote"),
+    path("lotes/<int:pk>/download/", views.download_lote_zip, name="download_lote_zip"),
 ]

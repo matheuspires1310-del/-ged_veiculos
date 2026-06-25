@@ -1,10 +1,16 @@
+import io
+import zipfile
+
+import requests
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Count
+from django.http import HttpResponse
 
 from .models import Empresa, CategoriaVeiculo
 from documentos.models import Lote, Documento, TipoDocumento
+from documentos.storage import obter_url_download
 
 
 def _empresas_do_usuario(user):
@@ -116,3 +122,71 @@ def detalhe_lote(request, pk):
         "checklist": checklist,
         "docs_por_tipo": tipos_com_doc,
     })
+
+
+def _nome_seguro(nome):
+    """Remove separadores de caminho para uso como entrada de zip."""
+    return nome.replace("/", "-").replace("\\", "-").strip() or "documento"
+
+
+@login_required
+def download_lote_zip(request, pk):
+    """Baixa todos os documentos sincronizados de um lote em um único ZIP,
+    organizado em subpastas por tipo de documento."""
+    empresas = _empresas_do_usuario(request.user)
+    lote = get_object_or_404(Lote, pk=pk, empresa__in=empresas)
+    docs = Documento.objects.filter(lote=lote, status_sync="sincronizado").select_related("tipo")
+
+    if not docs.exists():
+        messages.error(request, "Este lote não possui documentos sincronizados para download.")
+        return redirect("detalhe_lote", pk=lote.pk)
+
+    buffer = io.BytesIO()
+    nomes_usados = set()
+    falhas = 0
+
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for doc in docs:
+            url = doc.onedrive_download_url
+            if not url and doc.onedrive_item_id:
+                try:
+                    url = obter_url_download(doc.onedrive_item_id)
+                except Exception:
+                    url = ""
+            if not url:
+                falhas += 1
+                continue
+
+            try:
+                resp = requests.get(url, timeout=30)
+                resp.raise_for_status()
+            except Exception:
+                falhas += 1
+                continue
+
+            pasta = _nome_seguro(doc.tipo.nome)
+            nome_arquivo = _nome_seguro(doc.nome_exibicao or doc.nome_original)
+            caminho = f"{pasta}/{nome_arquivo}"
+
+            if caminho in nomes_usados:
+                base, ext = (nome_arquivo.rsplit(".", 1) + [""])[:2]
+                contador = 1
+                while caminho in nomes_usados:
+                    sufixo = f"{base}_{contador}.{ext}" if ext else f"{base}_{contador}"
+                    caminho = f"{pasta}/{sufixo}"
+                    contador += 1
+
+            nomes_usados.add(caminho)
+            zf.writestr(caminho, resp.content)
+
+    if not nomes_usados:
+        messages.error(request, "Não foi possível baixar nenhum documento deste lote.")
+        return redirect("detalhe_lote", pk=lote.pk)
+
+    if falhas:
+        messages.warning(request, f"{falhas} documento(s) não puderam ser incluídos no ZIP.")
+
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type="application/zip")
+    response["Content-Disposition"] = f'attachment; filename="Lote_{_nome_seguro(lote.codigo)}.zip"'
+    return response
